@@ -198,15 +198,21 @@ H5P.Blanks = (function ($, Question) {
 
     if (!self.params.behaviour.autoCheck && this.params.behaviour.enableCheckButton) {
       // Check answer button
-      self.addButton('check-answer', self.params.checkAnswer, function () { 
+      self.addButton('check-answer', "Submit Answers", function () { 
         // Move focus to top of content
         self.a11yHeader.innerHTML = self.params.a11yHeader;
         self.a11yHeader.focus();
 
         self.toggleButtonVisibility(STATE_CHECKING);
+
+        if(typeof self.parent == "undefined") {
+          self.triggerXAPIScored(self.getScore(), self.getMaxScore(), 'submitted-curriki');
+        }
         self.markResults();
         self.showEvaluation();
+        
         self.triggerAnswered();
+        
       }, true, {
         'aria-label': self.params.a11yCheck,
       }, {
@@ -218,7 +224,13 @@ H5P.Blanks = (function ($, Question) {
         }
       });
 
-      if(typeof this.parent == "undefined") {
+      /*if(typeof this.parent == "undefined") {
+
+        self.addButton('submit Answers', self.params.submitAnswers, function () {
+          self.showCorrectAnswers(false);
+        }, self.params.behaviour.enableSolutionsButton, {
+          'aria-label': self.params.a11yShowSolution,
+        });
         self.addButton('view-summary', self.params.viewSummary, function () { 
           
           var confirmationDialog = new H5P.ConfirmationDialog({
@@ -239,14 +251,7 @@ H5P.Blanks = (function ($, Question) {
           confirmationDialog.appendTo(parent.document.body);
           confirmationDialog.show();
           
-          // Move focus to top of content
-          /*self.a11yHeader.innerHTML = self.params.a11yHeader;
-          self.a11yHeader.focus();
-  
-          self.toggleButtonVisibility(STATE_CHECKING);
-          self.markResults();
-          self.showEvaluation();
-          self.triggerAnswered();*/
+          
         }, true, {
           'aria-label': self.params.a11yCheck,
         }, {
@@ -257,7 +262,7 @@ H5P.Blanks = (function ($, Question) {
             $parentElement: $container
           }
         });
-      }
+      }*/
       
     }
 
