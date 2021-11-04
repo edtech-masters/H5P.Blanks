@@ -198,7 +198,7 @@ H5P.Blanks = (function ($, Question) {
 
     if (!self.params.behaviour.autoCheck && this.params.behaviour.enableCheckButton) {
       // Check answer button
-      self.addButton('check-answer', "Submit Answers", function () { 
+      self.addButton('check-answer', self.params.checkAnswer, function () { 
         // Move focus to top of content
         self.a11yHeader.innerHTML = self.params.a11yHeader;
         self.a11yHeader.focus();
