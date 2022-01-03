@@ -718,6 +718,17 @@ H5P.Blanks = (function ($, Question) {
   };
 
   /**
+   * Trigger xAPI completed event
+   */
+   Blanks.prototype.triggerCompleted = function () {
+    var xAPIEvent = this.createXAPIEventTemplate('answered');
+    this.addQuestionToXAPI(xAPIEvent);
+    this.addResponseToXAPI(xAPIEvent);
+    this.trigger(xAPIEvent);
+  };
+
+
+  /**
    * Get xAPI data.
    * Contract used by report rendering engine.
    *
