@@ -52,6 +52,7 @@ H5P.Blanks = (function ($, Question) {
     // IDs
     this.contentId = id;
     this.contentData = contentData;
+    this.duration = 0;
 
     this.params = $.extend(true, {}, {
       text: "Fill in",
@@ -172,6 +173,9 @@ H5P.Blanks = (function ($, Question) {
 
     // Restore previous state
     self.setH5PUserState();
+
+    // start activity time
+    self.startStopWatch();
   };
 
   /**
@@ -700,6 +704,7 @@ H5P.Blanks = (function ($, Question) {
     this.toggleButtonVisibility(STATE_ONGOING);
     this.resetGrowTextField();
     this.toggleAllInputs(true);
+    this.resetStopWatch();
     this.done = false;
   };
 
@@ -853,6 +858,8 @@ H5P.Blanks = (function ($, Question) {
   Blanks.prototype.addResponseToXAPI = function (xAPIEvent) {
     xAPIEvent.setScoredResult(this.getScore(), this.getMaxScore(), this);
     xAPIEvent.data.statement.result.response = this.getxAPIResponse();
+    const duration = this.stopStopWatch();
+    xAPIEvent.data.statement.result.duration = 'PT' + duration + 'S';
   };
 
   /**
@@ -1023,6 +1030,50 @@ H5P.Blanks = (function ($, Question) {
   };
 
   Blanks.idCounter = 0;
+
+  /**
+   * Starts the stop watch
+   *
+   * @public
+   */
+  Blanks.prototype.startStopWatch = function(){
+    /**
+     * @property {number}
+     */
+    this.startTime = Date.now();
+    return this;
+  };
+
+  /**
+   * Stops the stopwatch, and returns the duration in seconds.
+   *
+   * @public
+   * @return {number}
+   */
+  Blanks.prototype.stopStopWatch = function(){
+    this.duration = this.duration + Date.now() - this.startTime;
+    return this.passedTimeStopWatch();
+  };
+
+  /**
+   * Sets the duration to 0
+   *
+   * @public
+   */
+  Blanks.prototype.resetStopWatch = function(){
+    this.duration = 0;
+    this.startTime = Date.now();
+  };
+
+  /**
+   * Returns the passed time in seconds
+   *
+   * @public
+   * @return {number}
+   */
+  Blanks.prototype.passedTimeStopWatch = function(){
+    return Math.round(this.duration / 10) / 100;
+  };
 
   return Blanks;
 })(H5P.jQuery, H5P.Question);
