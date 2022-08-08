@@ -58,7 +58,7 @@ H5P.Blanks = (function ($, Question) {
     this.params = $.extend(true, {}, {
       text: "Fill in",
       questions: [
-        "Oslo is the capital of *Norway*."
+        "<p>Oslo is the capital of *Norway*.</p>"
       ],
       overallFeedback: [],
       userAnswers: [], // TODO This isn't in semantics?
@@ -96,6 +96,7 @@ H5P.Blanks = (function ($, Question) {
       a11yShowSolution: 'Show the solution. The task will be marked with its correct solution.',
       a11yRetry: 'Retry the task. Reset all responses and start the task over again.',
       a11yHeader: 'Checking mode',
+      submitAnswer: 'Submit',
     }, params);
 
     // Delete empty questions
@@ -109,6 +110,10 @@ H5P.Blanks = (function ($, Question) {
     this.contentData = contentData;
     if (this.contentData !== undefined && this.contentData.previousState !== undefined) {
       this.previousState = this.contentData.previousState;
+    }
+    // to set parent in self if present in content data
+    if (self.parent === undefined && contentData && contentData.parent) {
+      self.parent = contentData.parent;
     }
 
     // Clozes
@@ -128,18 +133,10 @@ H5P.Blanks = (function ($, Question) {
         self.shiftPressed = false;
       }
     });
-  }
 
-  // Inheritance
-  Blanks.prototype = Object.create(Question.prototype);
-  Blanks.prototype.constructor = Blanks;
-
-  /**
-   * Registers this question type's DOM elements before they are attached.
-   * Called from H5P.Question.
-   */
-  Blanks.prototype.registerDomElements = function () {
-    var self = this;
+    // Using instructions as label for our text groups
+    this.labelId = 'h5p-blanks-instructions-' + Blanks.idCounter;
+    this.content = self.createQuestions();
 
     // Check for task media
     var media = self.params.media;
@@ -162,16 +159,19 @@ H5P.Blanks = (function ($, Question) {
           self.setVideo(media);
         }
       }
+      else if (type === 'H5P.Audio') {
+        if (media.params.files) {
+          // Register task audio
+          self.setAudio(media);
+        }
+      }
     }
 
-    // Using instructions as label for our text groups
-    const labelId = 'h5p-blanks-instructions-' + Blanks.idCounter;
-
     // Register task introduction text
-    self.setIntroduction('<div id="' + labelId + '">' + self.params.text + '</div>');
+    self.setIntroduction('<div id="' + this.labelId + '">' + self.params.text + '</div>');
 
     // Register task content area
-    self.setContent(self.createQuestions(labelId), {
+    self.setContent(self.content, {
       'class': self.params.behaviour.separateLines ? 'h5p-separate-lines' : ''
     });
 
@@ -181,9 +181,40 @@ H5P.Blanks = (function ($, Question) {
     // Restore previous state
     self.setH5PUserState();
 
-    // start activity time
-    self.startStopWatch();
-  };
+    // check is parent is IV or QS, if so then on open then activity will be started
+    const isEmbedInComplexActivity = this.contentData && this.contentData.parent && this.contentData.parent.contentData
+        && this.contentData.parent.contentData.libraryInfo && this.contentData.parent.contentData.libraryInfo.machineName
+        && isDynamicTasks.includes(this.contentData.parent.contentData.libraryInfo.machineName);
+
+    if(!isEmbedInComplexActivity) {
+      // start activity time
+      self.startStopWatch();
+    }
+
+    /**
+     * Overrides the set activity started method of the superclass (H5P.EventDispatcher) and calls it
+     * at the same time.
+     */
+    this.setActivityStarted = (function (original) {
+      return function () {
+        original.call(self);
+        self.resetStopWatch();
+        self.startStopWatch();
+      };
+    })(this.setActivityStarted);
+
+  }
+
+  var isDynamicTasks = [
+    'H5P.InteractiveVideo',
+    'H5P.BrightcoveInteractiveVideo',
+    'H5P.CurrikiInteractiveVideo',
+    'H5P.QuestionSet'
+  ];
+
+  // Inheritance
+  Blanks.prototype = Object.create(Question.prototype);
+  Blanks.prototype.constructor = Blanks;
 
   /**
    * Create all the buttons for the task
@@ -233,7 +264,9 @@ H5P.Blanks = (function ($, Question) {
           l10n: self.params.confirmCheck,
           instance: self,
           $parentElement: $container
-        }
+        },
+        textIfSubmitting: self.params.submitAnswer,
+        contentData: self.contentData,
       });
 
       /*if(typeof this.parent == "undefined") {
@@ -382,7 +415,7 @@ H5P.Blanks = (function ($, Question) {
   /**
    * Create questitons html for DOM
    */
-  Blanks.prototype.createQuestions = function (labelId) {
+  Blanks.prototype.createQuestions = function () {
     var self = this;
 
     var html = '';
@@ -408,7 +441,7 @@ H5P.Blanks = (function ($, Question) {
         return cloze;
       });
 
-      html += '<div role="group" aria-labelledby="' + labelId + '">' + question + '</div>';
+      html += '<div role="group" aria-labelledby="' + self.labelId + '">' + question + '</div>';
     }
 
     self.hasClozes = clozeNumber > 0;
@@ -1003,7 +1036,7 @@ H5P.Blanks = (function ($, Question) {
 
     // Get user input for every cloze
     this.clozes.forEach(function (cloze) {
-      clozesContent.push(cloze.getUserInput());
+      clozesContent.push(cloze.getUserAnswer());
     });
     return clozesContent;
   };
@@ -1107,3 +1140,66 @@ H5P.Blanks = (function ($, Question) {
 
   return Blanks;
 })(H5P.jQuery, H5P.Question);
+
+/**
+ * Static utility method for parsing H5P.Blanks qestion into a format useful
+ * for creating reports.
+ * 
+ * Example question: 'H5P content may be edited using a *browser/web-browser:something you use every day*.'
+ * 
+ * Produces the following result:
+ * [
+ *   {
+ *     type: 'text',
+ *     content: 'H5P content may be edited using a '
+ *   },
+ *   {
+ *     type: 'answer',
+ *     correct: ['browser', 'web-browser']
+ *   },
+ *   {
+ *     type: 'text',
+ *     content: '.'
+ *   }
+ * ]
+ * 
+ * @param {string} question 
+ */
+H5P.Blanks.parseText = function (question) {
+  var blank = new H5P.Blanks({ question: question });
+
+  /**
+   * Parses a text into an array where words starting and ending
+   * with an asterisk are separated from other text.
+   * e.g ["this", "*is*", " an ", "*example*"]
+   *
+   * @param {string} text
+   *
+   * @return {string[]}
+   */
+  function tokenizeQuestionText(text) { 
+    return text.split(/(\*.*?\*)/).filter(function (str) { 
+      return str.length > 0; }
+    );
+  }
+
+  function startsAndEndsWithAnAsterisk(str) {
+    return str.substr(0,1) === '*' && str.substr(-1) === '*';
+  }
+
+  function replaceHtmlTags(str, value) {
+    return str.replace(/<[^>]*>/g, value);
+  }
+
+  return tokenizeQuestionText(replaceHtmlTags(question, '')).map(function (part) {
+    return startsAndEndsWithAnAsterisk(part) ? 
+      ({
+        type: 'answer',
+        correct: blank.parseSolution(part.slice(1, -1)).solutions
+      }) :
+      ({
+        type: 'text',
+        content: part
+      });
+  });
+};
