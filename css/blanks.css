@@ -16,6 +16,7 @@
   white-space: nowrap;
   width: 6em;
   background-color: yellow;
+  text-align: center;
 }
 .h5p-blanks .h5p-text-input:focus {
   outline: none;
